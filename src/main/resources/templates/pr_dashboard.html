@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>PR Status Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #121212; color: #e0e0e0; }
+        input[type="text"] { background: #1e1e1e; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 5px; }
+        button { padding: 10px 20px; margin-top: 10px; background-color: #6200ea; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        button:hover { background-color: #3700b3; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background-color: #1f1f1f; }
+        tr:nth-child(even) { background-color: #1a1a1a; }
+        .status-open   { color: #4caf50; font-weight: bold; }
+        .status-merged { color: #9c27b0; font-weight: bold; }
+        .status-closed { color: #f44336; font-weight: bold; }
+        .status-draft  { color: #9e9e9e; font-weight: bold; }
+        a { color: #82b1ff; }
+        .section-title { margin-top: 30px; }
+        .filter-bar { margin-top: 15px; }
+        .filter-bar select, .filter-bar input { background: #1e1e1e; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 5px; margin-right: 10px; }
+        .empty-msg { color: #888; padding: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>🚀 PR Status Dashboard</h1>
+
+    <!-- Add PR Form -->
+    <form th:action="@{/prs/add}" method="post" style="margin-bottom: 20px;">
+        <input type="text" name="prUrl" placeholder="Paste PR link here e.g. https://github.com/owner/repo/pull/123" style="width:60%" required />
+        <button type="submit">Add PR</button>
+    </form>
+
+    <!-- Summary -->
+    <div style="background:#1e1e1e; padding:15px; border-radius:8px; margin-bottom:20px;" th:if="${not #lists.isEmpty(prs)}">
+        <h2>📊 PR Summary</h2>
+        <p><b>Total PRs:</b> <span th:text="${#lists.size(prs)}"></span></p>
+    </div>
+
+    <!-- Open PRs Section -->
+    <h2 class="section-title" style="color:#4caf50;">🟢 Open PRs</h2>
+    <table th:if="${not #lists.isEmpty(openPrs)}">
+        <thead>
+            <tr>
+                <th>PR Link</th><th>Author</th><th>Status</th><th>From → To</th>
+                <th>CI Details</th><th>Conflicts</th><th>Out of Date</th>
+                <th>Approvals</th><th>Change Requests</th><th>Target Release</th>
+                <th>Notes</th><th>Last Checked</th><th>Reminder</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="pr : ${openPrs}">
+                <td><a th:href="${pr.prUrl}" th:text="${pr.prUrl}" target="_blank"></a></td>
+                <td th:text="${pr.author}"></td>
+                <td class="status-open" th:text="${pr.status}"></td>
+                <td th:text="${pr.fromBranch + ' → ' + pr.toBranch}"></td>
+                <td th:text="${pr.ciDetails != null ? #strings.listJoin(pr.ciDetails, ', ') : '-'}"></td>
+                <td th:text="${pr.conflicts}"></td>
+                <td th:text="${pr.outOfDate}"></td>
+                <td th:text="${pr.approvals}"></td>
+                <td th:text="${pr.changeRequests}"></td>
+                <td th:text="${pr.targetReleaseVersion != null ? pr.targetReleaseVersion : '-'}"></td>
+                <td th:text="${pr.notes != null ? pr.notes : '-'}"></td>
+                <td th:text="${pr.lastChecked != null ? #dates.format(pr.lastChecked, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+                <td th:text="${pr.reminder != null ? #dates.format(pr.reminder, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="empty-msg" th:if="${#lists.isEmpty(openPrs)}">No open PRs tracked.</p>
+
+    <!-- Merged PRs Section -->
+    <h2 class="section-title" style="color:#9c27b0;">🟣 Merged PRs</h2>
+    <table th:if="${not #lists.isEmpty(mergedPrs)}">
+        <thead>
+            <tr>
+                <th>PR Link</th><th>Author</th><th>Status</th><th>Merged By</th>
+                <th>From → To</th><th>CI Details</th><th>Conflicts</th>
+                <th>Approvals</th><th>Change Requests</th><th>Wiki</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="pr : ${mergedPrs}">
+                <td><a th:href="${pr.prUrl}" th:text="${pr.prUrl}" target="_blank"></a></td>
+                <td th:text="${pr.author}"></td>
+                <td class="status-merged" th:text="${pr.status}"></td>
+                <td th:text="${pr.mergedBy != null ? pr.mergedBy : '-'}"></td>
+                <td th:text="${pr.fromBranch + ' → ' + pr.toBranch}"></td>
+                <td th:text="${pr.ciDetails != null ? #strings.listJoin(pr.ciDetails, ', ') : '-'}"></td>
+                <td th:text="${pr.conflicts}"></td>
+                <td th:text="${pr.approvals}"></td>
+                <td th:text="${pr.changeRequests}"></td>
+                <td>
+                    <form th:action="@{'/prs/' + ${pr.id} + '/wiki'}" method="post" th:if="${!pr.addedToWiki}">
+                        <input type="text" name="wikiUrl" placeholder="Enter Wiki URL" style="width:60%" required />
+                        <button type="submit" style="padding:5px 10px;">Add to Wiki</button>
+                    </form>
+                    <span th:if="${pr.addedToWiki}" style="color:#4caf50;">
+                        ✅ Added
+                        <a th:href="${pr.wikiUrl}" th:text="${pr.wikiUrl}" target="_blank" style="color:#82b1ff; margin-left:10px;"></a>
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="empty-msg" th:if="${#lists.isEmpty(mergedPrs)}">No merged PRs tracked.</p>
+
+    <!-- Other PRs (Closed, Draft, etc.) -->
+    <h2 class="section-title" th:if="${not #lists.isEmpty(otherPrs)}" style="color:#f44336;">🔴 Other PRs (Closed / Draft)</h2>
+    <table th:if="${not #lists.isEmpty(otherPrs)}">
+        <thead>
+            <tr>
+                <th>PR Link</th><th>Author</th><th>Status</th>
+                <th>From → To</th><th>Conflicts</th><th>Approvals</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="pr : ${otherPrs}">
+                <td><a th:href="${pr.prUrl}" th:text="${pr.prUrl}" target="_blank"></a></td>
+                <td th:text="${pr.author}"></td>
+                <td th:text="${pr.status}"></td>
+                <td th:text="${pr.fromBranch + ' → ' + pr.toBranch}"></td>
+                <td th:text="${pr.conflicts}"></td>
+                <td th:text="${pr.approvals}"></td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
+
